@@ -1,19 +1,19 @@
 const express = require('express');
 const puppeteer = require('puppeteer');
-const path = require('path');
+const cors = require('cors'); // ← added
 
 const app = express();
+app.use(cors());              // allow all origins
 app.use(express.json());
 
-// In‑memory daily limit (resets when server restarts; upgrade to DB for production)
+// In‑memory daily limit
 const dailyLimits = new Map();
 const PREMIUM_IPS = new Set();
 const FREE_LIMIT = 10;
 
 function getClientIP(req) {
   return req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
-         req.socket.remoteAddress ||
-         '127.0.0.1';
+         req.socket.remoteAddress || '127.0.0.1';
 }
 
 app.post('/generate-pdf', async (req, res) => {
@@ -21,11 +21,10 @@ app.post('/generate-pdf', async (req, res) => {
   const today = new Date().toDateString();
   const key = `${ip}_${today}`;
 
-  // Premium check
   if (!PREMIUM_IPS.has(ip)) {
     const count = dailyLimits.get(key) || 0;
     if (count >= FREE_LIMIT) {
-      return res.status(429).json({ error: 'Daily free limit reached. Upgrade to premium.' });
+      return res.status(429).json({ error: 'Daily free limit reached.' });
     }
   }
 
@@ -34,9 +33,7 @@ app.post('/generate-pdf', async (req, res) => {
     return res.status(400).json({ error: 'Missing parameters' });
   }
 
-  try {
-    new URL(url); // validate
-  } catch {
+  try { new URL(url); } catch {
     return res.status(400).json({ error: 'Invalid URL' });
   }
 
@@ -49,17 +46,12 @@ app.post('/generate-pdf', async (req, res) => {
     const page = await browser.newPage();
     await page.goto(url, { waitUntil: 'networkidle0', timeout: 30000 });
 
-    let paperWidth, paperHeight;
-    if (paperFormat === 'A4') {
-      paperWidth = 8.27; paperHeight = 11.69;
-    } else {
-      paperWidth = 8.5; paperHeight = 11;
-    }
+    let pw, ph;
+    if (paperFormat === 'A4') { pw = 8.27; ph = 11.69; }
+    else                     { pw = 8.5;  ph = 11; }
 
-    const pdfBuffer = await page.pdf({
-      width: `${paperWidth}in`,
-      height: `${paperHeight}in`,
-      scale: scale,
+    const pdfBuf = await page.pdf({
+      width: `${pw}in`, height: `${ph}in`, scale,
       printBackground: true,
       margin: { top: 0, bottom: 0, left: 0, right: 0 }
     });
@@ -70,21 +62,14 @@ app.post('/generate-pdf', async (req, res) => {
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename="resume.pdf"');
-    res.send(Buffer.from(pdfBuffer));
+    res.send(Buffer.from(pdfBuf));
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Failed to generate PDF: ' + err.message });
+    res.status(500).json({ error: 'PDF generation failed: ' + err.message });
   } finally {
     if (browser) await browser.close();
   }
 });
 
-// Simulated premium (replace with real payment)
-app.post('/upgrade', (req, res) => {
-  const ip = getClientIP(req);
-  PREMIUM_IPS.add(ip);
-  res.json({ success: true });
-});
-
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`CORS-enabled server on ${PORT}`));

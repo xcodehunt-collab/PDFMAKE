@@ -1,9 +1,10 @@
 {
   "name": "resume-pdf-backend",
   "version": "1.0.0",
-  "description": "PDF generator backend with CORS enabled",
+  "description": "PDF generator with auto Chrome install",
   "main": "server.js",
   "scripts": {
+    "build": "npx puppeteer browsers install chrome",
     "start": "node server.js"
   },
   "dependencies": {

@@ -1,15 +1,15 @@
 {
   "name": "resume-pdf-backend",
   "version": "1.0.0",
-  "description": "PDF generator with auto Chrome install",
+  "description": "PDF generator (sparticuz chromium)",
   "main": "server.js",
   "scripts": {
-    "build": "npx puppeteer browsers install chrome",
     "start": "node server.js"
   },
   "dependencies": {
     "express": "^4.18.2",
-    "puppeteer": "^22.0.0",
+    "puppeteer-core": "^22.0.0",
+    "@sparticuz/chromium": "^128.0.0",
     "cors": "^2.8.5"
   }
 }
